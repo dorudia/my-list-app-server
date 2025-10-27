@@ -8,6 +8,8 @@ if (!process.env.FCM_SERVICE_ACCOUNT_JSON) {
 
 const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
 
+serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+
 export async function getAccessToken() {
   try {
     const auth = new google.auth.GoogleAuth({
