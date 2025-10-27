@@ -1,4 +1,5 @@
-// index.js
+process.env.NODE_OPTIONS = "--openssl-legacy-provider";
+
 import dotenv from "dotenv";
 dotenv.config(); // pe Render, variabilele vin din Environment → Environment Variables
 import express from "express";
