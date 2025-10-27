@@ -1,31 +1,27 @@
-process.env.NODE_OPTIONS = "--openssl-legacy-provider";
-
 import dotenv from "dotenv";
-dotenv.config(); // pe Render, variabilele vin din Environment → Environment Variables
+dotenv.config();
+
 import express from "express";
 import { Expo } from "expo-server-sdk";
 import { getAccessToken } from "./fcm-token.js";
-import fetch from "node-fetch"; // poți înlocui cu globalThis.fetch pe Node 20+
+import fetch from "node-fetch"; // sau globalThis.fetch pe Node 20+
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT;
-const expo = new Expo();
+const PORT = process.env.PORT || 3000;
 const FIREBASE_BASE = process.env.FIREBASE_BASE + "/liste";
+
+const expo = new Expo();
 
 app.get("/", (req, res) => {
   res.send("Serverul merge! ✅");
 });
 
-/**
- * Funcție pentru scanare notificări
- */
 const scanNotifications = async () => {
   try {
     const res = await fetch(`${FIREBASE_BASE}.json`);
     const data = await res.json();
-
     if (!data) return;
 
     const userKeys = Object.keys(data).filter((key) =>
@@ -77,12 +73,9 @@ const scanNotifications = async () => {
   }
 };
 
-/**
- * Pornire server și token FCM
- */
 (async () => {
   try {
-    const token = await getAccessToken(); // folosit dacă ai nevoie în request-uri
+    const token = await getAccessToken();
 
     app.listen(PORT, () => {
       console.log(`Serverul rulează pe port ${PORT}`);
