@@ -9,9 +9,13 @@ import fetch from "node-fetch"; // poți înlocui cu globalThis.fetch pe Node 20
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 const expo = new Expo();
 const FIREBASE_BASE = process.env.FIREBASE_BASE + "/liste";
+
+app.get("/", (req, res) => {
+  res.send("Serverul merge! ✅");
+});
 
 /**
  * Funcție pentru scanare notificări
