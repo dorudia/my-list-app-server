@@ -1,0 +1,5 @@
+# Backend secrets
+fcm-service-account.json
+node_modules/
+.env
+.env.production
