@@ -52,14 +52,16 @@ const scanNotifications = async () => {
 
     for (const n of notifications) {
       console.log("➡ CHECK:", {
-        reminderDate: n.reminderDate,
-        diff: new Date(n.reminderDate) - now,
+        date: n.date,
+        diff: new Date(n.reminderDate) - Date.now(),
       });
 
       // ❗ Dacă reminderDate este în viitor → sari
       if (new Date(n.reminderDate) > now) {
         console.log("⏭ SKIP – încă nu a venit timpul");
         continue;
+      } else {
+        console.log("✔ OK – timpul a venit");
       }
 
       if (!Expo.isExpoPushToken(n.expoPushToken)) {
