@@ -43,7 +43,7 @@ const scanNotifications = async () => {
     // 🔍 1. Luăm DOAR notificările nedeliverate + cu data <= acum
     const notifications = await Notification.find({
       delivered: false,
-      date: { $lte: new Date() },
+      reminderDate: { $lte: new Date() },
     });
 
     if (!notifications.length) return; // nimic de trimis
