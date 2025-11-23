@@ -11,7 +11,7 @@ import todosRoutes from "./routes/todos.js";
 import notificationsRouter from "./routes/notifications.js";
 // sus, cu celelalte importuri
 import { Notification } from "./models/Notifications.js";
-import chunk from "lodash/chunk";
+import chunk from "lodash/chunk.js";
 
 const app = express();
 app.use(express.json());
