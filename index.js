@@ -45,21 +45,24 @@ export const scanNotifications = async () => {
   console.log("⏱ NOW:", now.toISOString());
 
   try {
-    // 1️⃣ Luăm toate notificările nedeliverate
-    const undelivered = await Notification.find({ delivered: false }).lean();
-    if (!undelivered.length) {
-      console.log("ℹ️ No undelivered notifications");
-      return;
-    }
+    // 1️⃣ Preluăm toate notificările nedeliverate
+    const allUndelivered = await Notification.find({ delivered: false }).lean();
+    console.log("ℹ all undelivered count:", allUndelivered.length);
 
-    // 2️⃣ Filtrăm doar cele care au data <= now
-    const ready = undelivered.filter((n) => n.date && new Date(n.date) <= now);
-    if (!ready.length) {
-      console.log("ℹ️ No notifications ready to send");
-      return;
-    }
+    if (!allUndelivered.length) return;
 
-    // 3️⃣ Pregătim mesajele
+    // 2️⃣ Filtrăm doar cele pentru care data/ora notificării a trecut
+    const ready = allUndelivered.filter((n) => {
+      if (!n.date) return false; // skip notificările fără dată
+      const notifTime = new Date(n.date);
+      return notifTime.getTime() <= now.getTime();
+    });
+
+    console.log("🔎 ready to send:", ready.length);
+
+    if (!ready.length) return;
+
+    // 3️⃣ Construim mesajele
     const messages = ready
       .map((n) => {
         if (!n.expoPushToken || !Expo.isExpoPushToken(n.expoPushToken)) {
@@ -71,27 +74,35 @@ export const scanNotifications = async () => {
           sound: "default",
           title: n.title || "Notificare",
           body: n.body || "Ai o notificare!",
-          data: { todoId: n.todoId, listName: n.listName, notifId: n._id },
+          data: {
+            todoId: n.todoId || null,
+            listName: n.listName || null,
+            notifId: n._id,
+          },
         };
       })
       .filter(Boolean);
 
-    // 4️⃣ Trimitem în batch-uri de max 100
-    const batches = chunk(messages, 100);
-    for (const batch of batches) {
-      const receipts = await expo.sendPushNotificationsAsync(batch);
-      console.log("📨 Sent batch, receipts:", receipts.length);
+    if (!messages.length) return;
 
-      // 5️⃣ Marcam ca livrate
-      const ids = batch.map((m) => m.data.notifId);
-      await Notification.updateMany(
-        { _id: { $in: ids } },
-        { $set: { delivered: true } }
-      );
-      console.log("✅ Marked delivered:", ids);
+    // 4️⃣ Trimitem notificările una câte una (simplu)
+    for (const msg of messages) {
+      try {
+        await expo.sendPushNotificationsAsync([msg]);
+        console.log("✅ Sent:", msg.data.notifId);
+
+        // 5️⃣ Marcam ca livrat
+        if (msg.data?.notifId) {
+          await Notification.findByIdAndUpdate(msg.data.notifId, {
+            delivered: true,
+          });
+        }
+      } catch (err) {
+        console.error("❌ Error sending notification:", msg.data?.notifId, err);
+      }
     }
   } catch (err) {
-    console.error("❌ Error scanNotifications:", err);
+    console.error("❌ scanNotifications error:", err);
   }
 };
 
