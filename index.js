@@ -11,6 +11,7 @@ import todosRoutes from "./routes/todos.js";
 import notificationsRouter from "./routes/notifications.js";
 // sus, cu celelalte importuri
 import { Notification } from "./models/Notifications.js";
+import chunk from "lodash/chunk";
 
 const app = express();
 app.use(express.json());
@@ -39,33 +40,30 @@ app.use("/todos", todosRoutes);
 app.use("/notifications", notificationsRouter);
 
 // debug-scanNotifications.js (înlocuiește temporar funcția ta)
-import chunk from "lodash/chunk"; // optional, sau implementezi manual
-
-const scanNotifications = async () => {
+export const scanNotifications = async () => {
   const now = new Date();
   console.log("⏱ NOW:", now.toISOString());
 
   try {
-    // 1) Găsim toate notificările nelivrate
-    // query Mongo pare să funcționeze în instanța ta, dar păstrăm și fallback JS-filter
-    const allUndelivered = await Notification.find({ delivered: false }).lean();
-    console.log("ℹ all undelivered count:", allUndelivered.length);
+    // 1️⃣ Luăm toate notificările nedeliverate
+    const undelivered = await Notification.find({ delivered: false }).lean();
+    if (!undelivered.length) {
+      console.log("ℹ️ No undelivered notifications");
+      return;
+    }
 
-    // 2) Filtrăm doar cele care sunt <= now (siguranță dacă unele date sunt string)
-    const ready = allUndelivered.filter((n) => {
-      if (!n.date) return false;
-      return new Date(n.date).getTime() <= now.getTime();
-    });
+    // 2️⃣ Filtrăm doar cele care au data <= now
+    const ready = undelivered.filter((n) => n.date && new Date(n.date) <= now);
+    if (!ready.length) {
+      console.log("ℹ️ No notifications ready to send");
+      return;
+    }
 
-    console.log("🔎 ready to send:", ready.length);
-
-    if (!ready.length) return;
-
-    // 3) Construim mesajele valide (și verificăm token-urile)
+    // 3️⃣ Pregătim mesajele
     const messages = ready
       .map((n) => {
         if (!n.expoPushToken || !Expo.isExpoPushToken(n.expoPushToken)) {
-          console.log("❌ Invalid or missing token:", n._id);
+          console.log("❌ Invalid token:", n._id);
           return null;
         }
         return {
@@ -73,60 +71,27 @@ const scanNotifications = async () => {
           sound: "default",
           title: n.title || "Notificare",
           body: n.body || "Ai o notificare!",
-          data: {
-            todoId: n.todoId || null,
-            listName: n.listName || null,
-            notifId: n._id,
-          },
+          data: { todoId: n.todoId, listName: n.listName, notifId: n._id },
         };
       })
       .filter(Boolean);
 
-    if (!messages.length) {
-      console.log("⚠ No valid messages (tokens invalid/missing).");
-      return;
-    }
-
-    // 4) Trimitem în batchuri de max 100 (limită Expo)
+    // 4️⃣ Trimitem în batch-uri de max 100
     const batches = chunk(messages, 100);
     for (const batch of batches) {
-      try {
-        const receipts = await expo.sendPushNotificationsAsync(batch);
-        console.log("📨 sent batch, receipts length:", receipts.length);
+      const receipts = await expo.sendPushNotificationsAsync(batch);
+      console.log("📨 Sent batch, receipts:", receipts.length);
 
-        // receipts is an array of receipts in same order as batch. We can mark delivered optimistically.
-        // For simplicity: mark all corresponding notifications delivered.
-        // If you want stricter handling, inspect each receipt for status/error.
-        const idsToMark = batch.map((m) => m.data?.notifId).filter(Boolean);
-        await Notification.updateMany(
-          { _id: { $in: idsToMark } },
-          { $set: { delivered: true } }
-        );
-        console.log("✅ Marked delivered for:", idsToMark);
-      } catch (err) {
-        console.error("❌ Error sending batch:", err);
-        // fallback: try to send messages one-by-one to find failures (optional)
-        for (const single of batch) {
-          try {
-            await expo.sendPushNotificationsAsync([single]);
-            if (single.data?.notifId) {
-              await Notification.findByIdAndUpdate(single.data.notifId, {
-                delivered: true,
-              });
-              console.log("📤 Sent single & marked:", single.data.notifId);
-            }
-          } catch (err2) {
-            console.error(
-              "❌ Single send failed for",
-              single.data?.notifId,
-              err2
-            );
-          }
-        }
-      }
+      // 5️⃣ Marcam ca livrate
+      const ids = batch.map((m) => m.data.notifId);
+      await Notification.updateMany(
+        { _id: { $in: ids } },
+        { $set: { delivered: true } }
+      );
+      console.log("✅ Marked delivered:", ids);
     }
   } catch (err) {
-    console.error("Eroare la scanare:", err);
+    console.error("❌ Error scanNotifications:", err);
   }
 };
 
