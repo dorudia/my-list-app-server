@@ -11,7 +11,7 @@ import todosRoutes from "./routes/todos.js";
 import notificationsRouter from "./routes/notifications.js";
 // sus, cu celelalte importuri
 import { Notification } from "./models/Notifications.js";
-import chunk from "lodash/chunk.js";
+import { Todo } from "./models/Todo.js";
 
 const app = express();
 app.use(express.json());
@@ -51,54 +51,49 @@ export const scanNotifications = async () => {
 
     if (!allUndelivered.length) return;
 
-    // 2️⃣ Filtrăm doar cele pentru care data/ora notificării a trecut
-    const ready = allUndelivered.filter((n) => {
-      if (!n.date) return false; // skip notificările fără dată
-      const notifTime = new Date(n.date);
-      return notifTime.getTime() <= now.getTime();
-    });
+    // 2️⃣ Filtrăm doar notificările unde todo-ul are reminderDate trecut
+    const ready = [];
+    for (const n of allUndelivered) {
+      if (!n.todoId) continue; // skip notificările fără todo
+      const todo = await Todo.findById(n.todoId).lean();
+      if (!todo || !todo.reminderDate) continue;
+
+      const reminderTime = new Date(todo.reminderDate);
+      if (reminderTime.getTime() <= now.getTime()) {
+        ready.push({ notif: n, todo });
+      }
+    }
 
     console.log("🔎 ready to send:", ready.length);
-
     if (!ready.length) return;
 
-    // 3️⃣ Construim mesajele
-    const messages = ready
-      .map((n) => {
-        if (!n.expoPushToken || !Expo.isExpoPushToken(n.expoPushToken)) {
-          console.log("❌ Invalid token:", n._id);
-          return null;
-        }
-        return {
-          to: n.expoPushToken,
-          sound: "default",
-          title: n.title || "Notificare",
-          body: n.body || "Ai o notificare!",
-          data: {
-            todoId: n.todoId || null,
-            listName: n.listName || null,
-            notifId: n._id,
-          },
-        };
-      })
-      .filter(Boolean);
+    // 3️⃣ Trimitem notificările
+    for (const { notif, todo } of ready) {
+      if (!notif.expoPushToken || !Expo.isExpoPushToken(notif.expoPushToken)) {
+        console.log("❌ Invalid token:", notif._id);
+        continue;
+      }
 
-    if (!messages.length) return;
+      const message = {
+        to: notif.expoPushToken,
+        sound: "default",
+        title: notif.title || "Notificare",
+        body: notif.body || todo.text || "Ai o notificare!",
+        data: {
+          todoId: todo._id,
+          listName: todo.listName,
+          notifId: notif._id,
+        },
+      };
 
-    // 4️⃣ Trimitem notificările una câte una (simplu)
-    for (const msg of messages) {
       try {
-        await expo.sendPushNotificationsAsync([msg]);
-        console.log("✅ Sent:", msg.data.notifId);
+        await expo.sendPushNotificationsAsync([message]);
+        console.log("✅ Sent:", notif._id);
 
-        // 5️⃣ Marcam ca livrat
-        if (msg.data?.notifId) {
-          await Notification.findByIdAndUpdate(msg.data.notifId, {
-            delivered: true,
-          });
-        }
+        // 4️⃣ Marcare ca livrat
+        await Notification.findByIdAndUpdate(notif._id, { delivered: true });
       } catch (err) {
-        console.error("❌ Error sending notification:", msg.data?.notifId, err);
+        console.error("❌ Error sending notification:", notif._id, err);
       }
     }
   } catch (err) {
