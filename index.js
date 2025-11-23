@@ -39,91 +39,94 @@ app.use("/todos", todosRoutes);
 app.use("/notifications", notificationsRouter);
 
 // debug-scanNotifications.js (înlocuiește temporar funcția ta)
+import chunk from "lodash/chunk"; // optional, sau implementezi manual
+
 const scanNotifications = async () => {
+  const now = new Date();
+  console.log("⏱ NOW:", now.toISOString());
+
   try {
-    const now = new Date();
-    console.log("⏱ NOW:", now.toISOString());
+    // 1) Găsim toate notificările nelivrate
+    // query Mongo pare să funcționeze în instanța ta, dar păstrăm și fallback JS-filter
+    const allUndelivered = await Notification.find({ delivered: false }).lean();
+    console.log("ℹ all undelivered count:", allUndelivered.length);
 
-    // 0) quick counts to ensure we're pe aceeași colecție
-    const totalCount = await Notification.countDocuments();
-    const undeliveredCount = await Notification.countDocuments({
-      delivered: false,
+    // 2) Filtrăm doar cele care sunt <= now (siguranță dacă unele date sunt string)
+    const ready = allUndelivered.filter((n) => {
+      if (!n.date) return false;
+      return new Date(n.date).getTime() <= now.getTime();
     });
-    console.log("ℹ️ total docs:", totalCount, "undelivered:", undeliveredCount);
 
-    // 1) fetch a few raw docs to inspect shapes (no filters)
-    const sample = await Notification.find().limit(10).lean();
-    console.log("🔬 sample docs (limit 10):");
-    sample.forEach((d, i) =>
-      console.log(i, {
-        id: d._id.toString ? d._id.toString() : d._id,
-        delivered: d.delivered,
-        date_raw: d.date,
-        date_type: typeof d.date,
-        date_parsed: d.date ? new Date(d.date).toISOString() : null,
+    console.log("🔎 ready to send:", ready.length);
+
+    if (!ready.length) return;
+
+    // 3) Construim mesajele valide (și verificăm token-urile)
+    const messages = ready
+      .map((n) => {
+        if (!n.expoPushToken || !Expo.isExpoPushToken(n.expoPushToken)) {
+          console.log("❌ Invalid or missing token:", n._id);
+          return null;
+        }
+        return {
+          to: n.expoPushToken,
+          sound: "default",
+          title: n.title || "Notificare",
+          body: n.body || "Ai o notificare!",
+          data: {
+            todoId: n.todoId || null,
+            listName: n.listName || null,
+            notifId: n._id,
+          },
+        };
       })
-    );
+      .filter(Boolean);
 
-    // 2) Try the strict query you used originally (date <= now)
-    const q1 = await Notification.find({
-      delivered: false,
-      date: { $lte: now },
-    }).lean();
-    console.log("🔎 Query {delivered:false, date:{$lte:now}} =>", q1.length);
-
-    // 3) If q1 is zero, fetch all undelivered and inspect their date fields
-    const allUndel = await Notification.find({ delivered: false }).lean();
-    console.log("🧾 all undelivered length:", allUndel.length);
-    allUndel.forEach((d, i) =>
-      console.log(i, {
-        id: d._id.toString ? d._id.toString() : d._id,
-        date_raw: d.date,
-        date_type: typeof d.date,
-        date_parsed_ms: d.date ? new Date(d.date).getTime() : null,
-        shouldSend: d.date ? new Date(d.date).getTime() <= Date.now() : false,
-      })
-    );
-
-    // 4) Build ready array by JS filter (works even if date is string)
-    const ready = allUndel.filter((d) => {
-      if (!d.date) return false;
-      return new Date(d.date).getTime() <= Date.now();
-    });
-    console.log("✅ ready by JS-filter (date <= now):", ready.length);
-
-    // 5) (optional) show tokens of ready items
-    ready.forEach((d) => {
-      console.log(
-        "-> READY id:",
-        d._id,
-        "token:",
-        d.expoPushToken,
-        "date:",
-        d.date
-      );
-    });
-
-    // If you want to actually send, uncomment this block (use carefully)
-    /*
-    for (const n of ready) {
-      if (!Expo.isExpoPushToken(n.expoPushToken)) {
-        console.log("❌ invalid token for", n._id);
-        continue;
-      }
-      const message = {
-        to: n.expoPushToken,
-        sound: "default",
-        title: n.title || "Notificare",
-        body: n.body || "Ai o notificare!",
-        data: { todoId: n.todoId || null, listName: n.listName || null },
-      };
-      await expo.sendPushNotificationsAsync([message]);
-      await Notification.findByIdAndUpdate(n._id, { delivered: true });
-      console.log("📤 sent:", n._id);
+    if (!messages.length) {
+      console.log("⚠ No valid messages (tokens invalid/missing).");
+      return;
     }
-    */
+
+    // 4) Trimitem în batchuri de max 100 (limită Expo)
+    const batches = chunk(messages, 100);
+    for (const batch of batches) {
+      try {
+        const receipts = await expo.sendPushNotificationsAsync(batch);
+        console.log("📨 sent batch, receipts length:", receipts.length);
+
+        // receipts is an array of receipts in same order as batch. We can mark delivered optimistically.
+        // For simplicity: mark all corresponding notifications delivered.
+        // If you want stricter handling, inspect each receipt for status/error.
+        const idsToMark = batch.map((m) => m.data?.notifId).filter(Boolean);
+        await Notification.updateMany(
+          { _id: { $in: idsToMark } },
+          { $set: { delivered: true } }
+        );
+        console.log("✅ Marked delivered for:", idsToMark);
+      } catch (err) {
+        console.error("❌ Error sending batch:", err);
+        // fallback: try to send messages one-by-one to find failures (optional)
+        for (const single of batch) {
+          try {
+            await expo.sendPushNotificationsAsync([single]);
+            if (single.data?.notifId) {
+              await Notification.findByIdAndUpdate(single.data.notifId, {
+                delivered: true,
+              });
+              console.log("📤 Sent single & marked:", single.data.notifId);
+            }
+          } catch (err2) {
+            console.error(
+              "❌ Single send failed for",
+              single.data?.notifId,
+              err2
+            );
+          }
+        }
+      }
+    }
   } catch (err) {
-    console.error("Eroare la scanare debug:", err);
+    console.error("Eroare la scanare:", err);
   }
 };
 
