@@ -40,38 +40,45 @@ app.use("/notifications", notificationsRouter);
 
 const scanNotifications = async () => {
   try {
-    // 🔍 1. Luăm DOAR notificările nedeliverate + cu data <= acum
+    const now = new Date();
+    console.log("⏱ NOW:", now);
+
     const notifications = await Notification.find({
       delivered: false,
-      reminderDate: { $lte: new Date() },
+      reminder: true, // ← filtrare extra-sigură
     });
 
-    if (!notifications.length) return; // nimic de trimis
+    console.log("🔎 GASITE DIN DB:", notifications.length);
 
     for (const n of notifications) {
-      // verific token
-      if (!Expo.isExpoPushToken(n.expoPushToken)) continue;
+      console.log("➡ CHECK:", {
+        reminderDate: n.reminderDate,
+        diff: new Date(n.reminderDate) - now,
+      });
 
-      // 📨 mesaj push
+      // ❗ Dacă reminderDate este în viitor → sari
+      if (new Date(n.reminderDate) > now) {
+        console.log("⏭ SKIP – încă nu a venit timpul");
+        continue;
+      }
+
+      if (!Expo.isExpoPushToken(n.expoPushToken)) {
+        console.log("❌ TOKEN INVALID");
+        continue;
+      }
+
+      // 📨 TRIMITEM NOTIFICAREA
       const message = {
         to: n.expoPushToken,
         sound: "default",
         title: n.title || "Notificare",
         body: n.body || "Ai o notificare!",
-        data: {
-          todoId: n.todoId || null,
-          listName: n.listName || null,
-        },
       };
 
-      try {
-        await expo.sendPushNotificationsAsync([message]);
+      await expo.sendPushNotificationsAsync([message]);
+      await Notification.findByIdAndUpdate(n._id, { delivered: true });
 
-        // 👍 marcam ca livrat
-        await Notification.findByIdAndUpdate(n._id, { delivered: true });
-      } catch (err) {
-        console.log("Eroare notificare:", err);
-      }
+      console.log("✔ TRIMIS:", n._id);
     }
   } catch (err) {
     console.log("Eroare la scanare:", err);
