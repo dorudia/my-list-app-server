@@ -1,34 +1,3 @@
-// import express from "express";
-// import { sendPushNotifications } from "./sendNotifications.js";
-
-// const app = express();
-// const PORT = 3000;
-
-// app.use(express.json());
-
-// // Endpoint de test (optional)
-// app.post("/run-scan-for-user", async (req, res) => {
-//   const { userId } = req.body;
-//   try {
-//     await sendPushNotifications(); // poți filtra userId dacă vrei doar un user
-//     res.json({ status: "ok" });
-//   } catch (err) {
-//     console.error("❌ Eroare la endpoint:", err);
-//     res.status(500).json({ status: "error", error: err.message });
-//   }
-// });
-
-// // Pornim serverul
-// app.listen(PORT, () => {
-//   console.log(`✅ Serverul rulează pe http://localhost:${PORT}`);
-
-//   // La pornire pornim scanarea notificărilor la fiecare minut
-//   setInterval(async () => {
-//     console.log("🔍 Pornesc scanarea notificărilor...");
-//     await sendPushNotifications();
-//   }, 60 * 1000); // 60 secunde
-// });
-
 import fetch from "node-fetch";
 import { Expo } from "expo-server-sdk";
 
