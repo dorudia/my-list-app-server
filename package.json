@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "expo": "^54.0.20",

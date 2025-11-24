@@ -12,6 +12,7 @@ import notificationsRouter from "./routes/notifications.js";
 // sus, cu celelalte importuri
 import { Notification } from "./models/Notifications.js";
 import Todo from "./models/Todo.js";
+import { auth } from "@clerk/clerk-sdk-node";
 
 const app = express();
 app.use(express.json());
@@ -35,9 +36,9 @@ app.get("/", (req, res) => {
   console.log("GET / a fost apelat");
   res.send("Serverul merge! ✅");
 });
-app.use("/lists", listRoutes);
-app.use("/todos", todosRoutes);
-app.use("/notifications", notificationsRouter);
+app.use("/lists", auth(), listRoutes);
+app.use("/todos", auth(), todosRoutes);
+app.use("/notifications", auth(), notificationsRouter);
 
 // debug-scanNotifications.js (înlocuiește temporar funcția ta)
 export const scanNotifications = async () => {
@@ -77,7 +78,7 @@ export const scanNotifications = async () => {
       const message = {
         to: notif.expoPushToken,
         sound: "default",
-        title: notif.title || "Notificare",
+        title: `Reminder for-${notif.title}` || "Notificare",
         body: notif.body || todo.text || "Ai o notificare!",
         data: {
           todoId: todo._id,
