@@ -12,7 +12,7 @@ import notificationsRouter from "./routes/notifications.js";
 // sus, cu celelalte importuri
 import { Notification } from "./models/Notifications.js";
 import Todo from "./models/Todo.js";
-import { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
+import { ClerkExpressWithAuth } from "@clerk/clerk-sdk-node";
 
 const app = express();
 app.use(express.json());
@@ -37,9 +37,9 @@ app.get("/", (req, res) => {
   console.log("GET / a fost apelat");
   res.send("Serverul merge! ✅");
 });
-app.use("/lists", ClerkExpressRequireAuth(), listRoutes);
-app.use("/todos", ClerkExpressRequireAuth(), todosRoutes);
-app.use("/notifications", ClerkExpressRequireAuth(), notificationsRouter);
+app.use("/lists", ClerkExpressWithAuth(), listRoutes);
+app.use("/todos", ClerkExpressWithAuth(), todosRoutes);
+app.use("/notifications", ClerkExpressWithAuth(), notificationsRouter);
 
 // debug-scanNotifications.js (înlocuiește temporar funcția ta)
 export const scanNotifications = async () => {
