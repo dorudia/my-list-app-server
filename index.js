@@ -16,6 +16,7 @@ import { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
 
 const app = express();
 app.use(express.json());
+app.use(ClerkExpressWithAuth());
 
 const PORT = process.env.PORT || 3000;
 const FIREBASE_BASE = process.env.FIREBASE_BASE + "/liste";
