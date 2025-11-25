@@ -78,8 +78,8 @@ export const scanNotifications = async () => {
       const message = {
         to: notif.expoPushToken,
         sound: "default",
-        title: `Reminder for-${notif.title}` || "Notificare",
-        body: notif.body || todo.text || "Ai o notificare!",
+        title: `Reminder for - ${notif.title}` || "Notificare",
+        // body: notif.body || todo.text || "Ai o notificare!",
         data: {
           todoId: todo._id,
           listName: todo.listName,
