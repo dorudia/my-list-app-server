@@ -53,7 +53,11 @@ export const updateTodo = async (req, res) => {
     const $unset = {};
 
     Object.keys(updates).forEach((key) => {
-      if (updates[key] === undefined || updates[key] === null || updates[key] === "") {
+      if (
+        updates[key] === undefined ||
+        updates[key] === null ||
+        updates[key] === ""
+      ) {
         $unset[key] = 1; // Șterge câmpul
       } else {
         $set[key] = updates[key]; // Actualizează câmpul
