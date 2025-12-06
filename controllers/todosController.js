@@ -44,12 +44,34 @@ export const updateTodo = async (req, res) => {
   const { userId, listName, id } = req.params;
   const updates = req.body;
 
+  console.log("🔧 PATCH /todos - Received updates:", updates);
+  console.log("🔧 Params:", { userId, listName, id });
+
   try {
+    // Separă câmpurile care trebuie setate vs. cele care trebuie șterse
+    const $set = {};
+    const $unset = {};
+
+    Object.keys(updates).forEach((key) => {
+      if (updates[key] === undefined || updates[key] === null || updates[key] === "") {
+        $unset[key] = 1; // Șterge câmpul
+      } else {
+        $set[key] = updates[key]; // Actualizează câmpul
+      }
+    });
+
+    const updateQuery = {};
+    if (Object.keys($set).length > 0) updateQuery.$set = $set;
+    if (Object.keys($unset).length > 0) updateQuery.$unset = $unset;
+
+    console.log("🔧 Update query:", updateQuery);
+
     const updatedTodo = await Todo.findOneAndUpdate(
       { _id: id, userId, listName },
-      updates,
+      updateQuery,
       { new: true }
     );
+    console.log("✅ Updated todo:", updatedTodo);
     if (!updatedTodo) return res.status(404).json({ error: "Todo not found" });
     res.json(updatedTodo);
   } catch (err) {

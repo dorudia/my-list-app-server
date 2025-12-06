@@ -9,6 +9,8 @@ const todoSchema = new mongoose.Schema(
     completed: { type: Boolean, default: false },
     reminder: { type: Boolean, default: false },
     reminderDate: { type: Date, default: null },
+    link: { type: String, default: null },
+    phone: { type: String, default: null },
   },
   { timestamps: true } // adaugă createdAt și updatedAt automat
 );
