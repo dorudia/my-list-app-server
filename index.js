@@ -53,7 +53,7 @@ export const scanNotifications = async () => {
 
     if (!allUndelivered.length) return;
 
-    // 2️⃣ Filtrăm doar notificările unde todo-ul are reminderDate trecut sau în următoarele 60 sec
+    // 2️⃣ Filtrăm doar notificările unde todo-ul are reminderDate trecut
     const ready = [];
     for (const n of allUndelivered) {
       if (!n.todoId) continue; // skip notificările fără todo
@@ -61,9 +61,7 @@ export const scanNotifications = async () => {
       if (!todo || !todo.reminderDate) continue;
 
       const reminderTime = new Date(todo.reminderDate);
-      const timeDiff = reminderTime.getTime() - now.getTime();
-      // Trimite dacă reminder-ul e în trecut SAU în următoarele 60 secunde
-      if (timeDiff <= 60000) {
+      if (reminderTime.getTime() <= now.getTime()) {
         ready.push({ notif: n, todo });
       }
     }
