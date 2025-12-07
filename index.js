@@ -71,6 +71,21 @@ export const scanNotifications = async () => {
 
     // 3️⃣ Trimitem notificările
     for (const { notif, todo } of ready) {
+      // Email notification (trimite prima dată)
+      if (notif.userEmail) {
+        try {
+          await sendReminderEmail(
+            notif.userEmail,
+            `Reminder: ${notif.title}`,
+            todo.text || notif.title,
+            todo.reminderDate
+          );
+          console.log("✅ Email sent to:", notif.userEmail);
+        } catch (err) {
+          console.error("❌ Error sending email:", err);
+        }
+      }
+
       // Push notification
       if (notif.expoPushToken && Expo.isExpoPushToken(notif.expoPushToken)) {
         const message = {
@@ -89,21 +104,6 @@ export const scanNotifications = async () => {
           console.log("✅ Push notification sent:", notif._id);
         } catch (err) {
           console.error("❌ Error sending push notification:", notif._id, err);
-        }
-      }
-
-      // Email notification
-      if (notif.userEmail) {
-        try {
-          await sendReminderEmail(
-            notif.userEmail,
-            `Reminder: ${notif.title}`,
-            todo.text || notif.title,
-            todo.reminderDate
-          );
-          console.log("✅ Email sent to:", notif.userEmail);
-        } catch (err) {
-          console.error("❌ Error sending email:", err);
         }
       }
 

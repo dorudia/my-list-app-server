@@ -9,6 +9,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Verificare configurare la pornire
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ SMTP Connection Error:", error);
+  } else {
+    console.log("✅ SMTP Server ready to send emails");
+  }
+});
+
 // Trimite email de reminder
 export const sendReminderEmail = async (
   to,
@@ -44,10 +53,17 @@ export const sendReminderEmail = async (
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent:", info.messageId);
+    console.log("✅ Email sent successfully!");
+    console.log("   Message ID:", info.messageId);
+    console.log("   Response:", info.response);
+    console.log("   Accepted:", info.accepted);
+    console.log("   Rejected:", info.rejected);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("❌ Error sending email:", error);
+    console.error("❌ Error sending email:");
+    console.error("   Error message:", error.message);
+    console.error("   Error code:", error.code);
+    console.error("   Full error:", error);
     return { success: false, error: error.message };
   }
 };
