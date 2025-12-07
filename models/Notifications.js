@@ -11,6 +11,7 @@ const notificationSchema = new mongoose.Schema(
     delivered: { type: Boolean, default: false },
     date: { type: Date },
     expoPushToken: { type: String },
+    userEmail: { type: String }, // Email pentru reminder prin email
   },
   { timestamps: true }
 );

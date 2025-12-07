@@ -19,8 +19,19 @@ export const getNotifications = async (req, res) => {
 
 // POST create new notification
 export const createNotification = async (req, res) => {
-  const { userId, todoId, listName, title, body, date, expoPushToken } =
-    req.body;
+  const {
+    userId,
+    todoId,
+    listName,
+    title,
+    body,
+    date,
+    expoPushToken,
+    userEmail,
+  } = req.body;
+
+  console.log("📧 Creating notification with userEmail:", userEmail);
+
   try {
     const notification = await Notification.create({
       userId,
@@ -30,6 +41,7 @@ export const createNotification = async (req, res) => {
       body,
       date,
       expoPushToken,
+      userEmail, // Adăugăm email-ul pentru reminder
     });
     res.status(201).json(notification);
   } catch (err) {

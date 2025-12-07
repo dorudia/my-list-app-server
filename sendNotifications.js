@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { Expo } from "expo-server-sdk";
+import { sendReminderEmail } from "./services/emailService.js";
 
 const expo = new Expo();
 

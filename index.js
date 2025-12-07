@@ -13,6 +13,7 @@ import notificationsRouter from "./routes/notifications.js";
 import { Notification } from "./models/Notifications.js";
 import Todo from "./models/Todo.js";
 import { ClerkExpressRequireAuth } from "@clerk/clerk-sdk-node";
+import { sendReminderEmail } from "./services/emailService.js";
 
 const app = express();
 app.use(express.json());
@@ -52,7 +53,7 @@ export const scanNotifications = async () => {
 
     if (!allUndelivered.length) return;
 
-    // 2️⃣ Filtrăm doar notificările unde todo-ul are reminderDate trecut
+    // 2️⃣ Filtrăm doar notificările unde todo-ul are reminderDate trecut sau în următoarele 60 sec
     const ready = [];
     for (const n of allUndelivered) {
       if (!n.todoId) continue; // skip notificările fără todo
@@ -60,7 +61,9 @@ export const scanNotifications = async () => {
       if (!todo || !todo.reminderDate) continue;
 
       const reminderTime = new Date(todo.reminderDate);
-      if (reminderTime.getTime() <= now.getTime()) {
+      const timeDiff = reminderTime.getTime() - now.getTime();
+      // Trimite dacă reminder-ul e în trecut SAU în următoarele 60 secunde
+      if (timeDiff <= 60000) {
         ready.push({ notif: n, todo });
       }
     }
@@ -70,31 +73,47 @@ export const scanNotifications = async () => {
 
     // 3️⃣ Trimitem notificările
     for (const { notif, todo } of ready) {
-      if (!notif.expoPushToken || !Expo.isExpoPushToken(notif.expoPushToken)) {
-        console.log("❌ Invalid token:", notif._id);
-        continue;
+      // Push notification
+      if (notif.expoPushToken && Expo.isExpoPushToken(notif.expoPushToken)) {
+        const message = {
+          to: notif.expoPushToken,
+          sound: "default",
+          title: `Reminder for - ${notif.title}` || "Notificare",
+          data: {
+            todoId: todo._id,
+            listName: todo.listName,
+            notifId: notif._id,
+          },
+        };
+
+        try {
+          await expo.sendPushNotificationsAsync([message]);
+          console.log("✅ Push notification sent:", notif._id);
+        } catch (err) {
+          console.error("❌ Error sending push notification:", notif._id, err);
+        }
       }
 
-      const message = {
-        to: notif.expoPushToken,
-        sound: "default",
-        title: `Reminder for - ${notif.title}` || "Notificare",
-        // body: notif.body || todo.text || "Ai o notificare!",
-        data: {
-          todoId: todo._id,
-          listName: todo.listName,
-          notifId: notif._id,
-        },
-      };
+      // Email notification
+      if (notif.userEmail) {
+        try {
+          await sendReminderEmail(
+            notif.userEmail,
+            `Reminder: ${notif.title}`,
+            todo.text || notif.title,
+            todo.reminderDate
+          );
+          console.log("✅ Email sent to:", notif.userEmail);
+        } catch (err) {
+          console.error("❌ Error sending email:", err);
+        }
+      }
 
+      // 4️⃣ Marcare ca livrat
       try {
-        await expo.sendPushNotificationsAsync([message]);
-        console.log("✅ Sent:", notif._id);
-
-        // 4️⃣ Marcare ca livrat
         await Notification.findByIdAndUpdate(notif._id, { delivered: true });
       } catch (err) {
-        console.error("❌ Error sending notification:", notif._id, err);
+        console.error("❌ Error updating notification:", notif._id, err);
       }
     }
   } catch (err) {
