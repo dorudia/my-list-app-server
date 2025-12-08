@@ -35,7 +35,7 @@ const expo = new Expo();
 // Rute
 app.get("/", (req, res) => {
   console.log("GET / a fost apelat");
-  res.send("Serverul merge! ✅");
+  res.send(`Serverul my-list-app merge pe portul  ${PORT}! ✅`);
 });
 app.use("/lists", ClerkExpressRequireAuth(), listRoutes);
 app.use("/todos", ClerkExpressRequireAuth(), todosRoutes);
@@ -92,11 +92,21 @@ export const scanNotifications = async () => {
         }
       }
 
-      // 4️⃣ Marcare ca livrat (imediat după push)
+      // 4️⃣ Marcare ca livrat (imediat după push) și update la todo
       try {
         await Notification.findByIdAndUpdate(notif._id, { delivered: true });
+        // Update la todo: dezactivează reminder-ul și resetează reminderDate
+        if (notif.todoId && notif.listName) {
+          await Todo.findByIdAndUpdate(notif.todoId.toString(), {
+            reminder: false,
+            reminderDate: null,
+          });
+          console.log(
+            `✅ Todo updated: reminder dezactivat pentru ${notif.todoId}`
+          );
+        }
       } catch (err) {
-        console.error("❌ Error updating notification:", notif._id, err);
+        console.error("❌ Error updating notification/todo:", notif._id, err);
       }
 
       // Email notification: trimite după push, nu blochează execuția
