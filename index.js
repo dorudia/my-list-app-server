@@ -92,6 +92,13 @@ export const scanNotifications = async () => {
         }
       }
 
+      // 4️⃣ Marcare ca livrat (imediat după push)
+      try {
+        await Notification.findByIdAndUpdate(notif._id, { delivered: true });
+      } catch (err) {
+        console.error("❌ Error updating notification:", notif._id, err);
+      }
+
       // Email notification: trimite după push, nu blochează execuția
       if (notif.userEmail) {
         void sendReminderEmail(
@@ -101,34 +108,6 @@ export const scanNotifications = async () => {
           todo.reminderDate
         );
         // Logul va fi afișat din emailService.js
-      }
-
-      // Push notification
-      if (notif.expoPushToken && Expo.isExpoPushToken(notif.expoPushToken)) {
-        const message = {
-          to: notif.expoPushToken,
-          sound: "default",
-          title: `Reminder for - ${notif.title}` || "Notificare",
-          data: {
-            todoId: todo._id,
-            listName: todo.listName,
-            notifId: notif._id,
-          },
-        };
-
-        try {
-          await expo.sendPushNotificationsAsync([message]);
-          console.log("✅ Push notification sent:", notif._id);
-        } catch (err) {
-          console.error("❌ Error sending push notification:", notif._id, err);
-        }
-      }
-
-      // 4️⃣ Marcare ca livrat
-      try {
-        await Notification.findByIdAndUpdate(notif._id, { delivered: true });
-      } catch (err) {
-        console.error("❌ Error updating notification:", notif._id, err);
       }
     }
   } catch (err) {
