@@ -71,7 +71,8 @@ export const scanNotifications = async () => {
 
     // 3️⃣ Trimitem notificările
     for (const { notif, todo } of ready) {
-      // Email notification (trimite prima dată)
+      // Email notification dezactivat temporar
+      /*
       if (notif.userEmail) {
         try {
           await sendReminderEmail(
@@ -85,6 +86,7 @@ export const scanNotifications = async () => {
           console.error("❌ Error sending email:", err);
         }
       }
+      */
 
       // Push notification
       if (notif.expoPushToken && Expo.isExpoPushToken(notif.expoPushToken)) {
