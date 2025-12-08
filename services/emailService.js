@@ -22,7 +22,7 @@ export const sendReminderEmail = async (
   const msg = {
     to,
     from: {
-      email: "no-reply@mylistapp.com",
+      email: "dorudia@gmail.com",
       name: "My List App",
     },
     subject: subject || "🔔 Reminder: Task Due",
