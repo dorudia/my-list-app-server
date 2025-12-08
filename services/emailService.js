@@ -1,4 +1,3 @@
-
 import sgMail from "@sendgrid/mail";
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -8,6 +7,15 @@ export const sendReminderEmail = async (
   todoText,
   reminderDate
 ) => {
+  // Debug: log params
+  console.log("[SendGrid] Preparing to send email:", {
+    to,
+    subject,
+    todoText,
+    reminderDate,
+    SENDGRID_API_KEY_EXISTS: !!process.env.SENDGRID_API_KEY,
+  });
+
   // Delay de 30s înainte de trimitere email
   await new Promise((resolve) => setTimeout(resolve, 30000));
 
@@ -15,7 +23,7 @@ export const sendReminderEmail = async (
     to,
     from: {
       email: "no-reply@mylistapp.com",
-      name: "My List App"
+      name: "My List App",
     },
     subject: subject || "🔔 Reminder: Task Due",
     html: `
@@ -28,7 +36,9 @@ export const sendReminderEmail = async (
             </p>
           </div>
           <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
-            ⏰ Reminder set for: <strong>${new Date(reminderDate).toLocaleString("ro-RO")}</strong>
+            ⏰ Reminder set for: <strong>${new Date(
+              reminderDate
+            ).toLocaleString("ro-RO")}</strong>
           </p>
           <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
             This is an automated reminder from My List App
@@ -39,12 +49,16 @@ export const sendReminderEmail = async (
   };
 
   try {
-    await sgMail.send(msg);
+    const response = await sgMail.send(msg);
     console.log("✅ Email sent via SendGrid to:", to);
+    console.log("[SendGrid] Response:", response);
     return { success: true };
   } catch (error) {
-    console.error("❌ Error sending email via SendGrid:", error);
-    // Nu blochează execuția, doar loghează
+    console.error("❌ Error sending email via SendGrid:");
+    if (error.response) {
+      console.error("[SendGrid] Error response body:", error.response.body);
+    }
+    console.error("[SendGrid] Error object:", error);
     return { success: false, error: error.message };
   }
 };
