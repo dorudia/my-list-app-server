@@ -71,22 +71,37 @@ export const scanNotifications = async () => {
 
     // 3️⃣ Trimitem notificările
     for (const { notif, todo } of ready) {
-      // Email notification dezactivat temporar
-      /*
-      if (notif.userEmail) {
+      // Push notification
+      if (notif.expoPushToken && Expo.isExpoPushToken(notif.expoPushToken)) {
+        const message = {
+          to: notif.expoPushToken,
+          sound: "default",
+          title: `Reminder for - ${notif.title}` || "Notificare",
+          data: {
+            todoId: todo._id,
+            listName: todo.listName,
+            notifId: notif._id,
+          },
+        };
+
         try {
-          await sendReminderEmail(
-            notif.userEmail,
-            `Reminder: ${notif.title}`,
-            todo.text || notif.title,
-            todo.reminderDate
-          );
-          console.log("✅ Email sent to:", notif.userEmail);
+          await expo.sendPushNotificationsAsync([message]);
+          console.log("✅ Push notification sent:", notif._id);
         } catch (err) {
-          console.error("❌ Error sending email:", err);
+          console.error("❌ Error sending push notification:", notif._id, err);
         }
       }
-      */
+
+      // Email notification: trimite după push, nu blochează execuția
+      if (notif.userEmail) {
+        void sendReminderEmail(
+          notif.userEmail,
+          `Reminder: ${notif.title}`,
+          todo.text || notif.title,
+          todo.reminderDate
+        );
+        // Logul va fi afișat din emailService.js
+      }
 
       // Push notification
       if (notif.expoPushToken && Expo.isExpoPushToken(notif.expoPushToken)) {
