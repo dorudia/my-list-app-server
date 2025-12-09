@@ -110,15 +110,15 @@ export const scanNotifications = async () => {
       }
 
       // Email notification: trimite după push, nu blochează execuția
-      if (notif.userEmail) {
-        void sendReminderEmail(
-          notif.userEmail,
-          `Reminder: ${notif.title}`,
-          todo.text || notif.title,
-          todo.reminderDate
-        );
-        // Logul va fi afișat din emailService.js
-      }
+      // if (notif.userEmail) {
+      //   void sendReminderEmail(
+      //     notif.userEmail,
+      //     `Reminder: ${notif.title}`,
+      //     todo.text || notif.title,
+      //     todo.reminderDate
+      //   );
+      //   // Logul va fi afișat din emailService.js
+      // }
     }
   } catch (err) {
     console.error("❌ scanNotifications error:", err);
